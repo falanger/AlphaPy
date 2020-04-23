@@ -14,6 +14,8 @@
 
 .eggs/*
 
+.venv/*
+
 alphapy/examples/Trading System/.ipynb_checkpoints/A Trading System-checkpoint.ipynb
 *.pkl
 *.png
