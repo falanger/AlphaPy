@@ -27,8 +27,7 @@
 #
 
 from alphapy.frame import Frame
-from alphapy.frame import frame_name
-from alphapy.frame import read_frame
+from alphapy.frame import read_frame, write_frame, frame_name
 from alphapy.globals import ModelType
 from alphapy.globals import Partition, datasets
 from alphapy.globals import PSEP, SSEP, USEP
@@ -809,21 +808,77 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
     for symbol in group.members:
         logger.info("Getting %s data from %s to %s",
                     symbol.upper(), from_date, to_date)
+
+        # local intraday or daily
+        dspace = Space(gspace.subject, gspace.schema, fractal)
+        fname = frame_name(symbol.lower(), dspace)
+
         # Locate the data source
         if schema == 'data':
-            # local intraday or daily
-            dspace = Space(gspace.subject, gspace.schema, data_fractal)
-            fname = frame_name(symbol.lower(), dspace)
             df = read_frame(data_dir, fname, extension, separator)
         elif schema in data_dispatch_table.keys():
-            df = data_dispatch_table[schema](schema,
-                                             subschema,
-                                             symbol,
-                                             intraday_data,
-                                             data_fractal,
-                                             from_date,
-                                             to_date,
-                                             lookback_period)
+
+            def load_data_chunk(start_date, stop_date):
+                data_chunk = data_dispatch_table[schema](schema,
+                                                         subschema,
+                                                         symbol,
+                                                         intraday_data,
+                                                         fractal,
+                                                         start_date,
+                                                         stop_date,
+                                                         lookback_period)
+                # Normalize index
+                if intraday_data:
+                    data_chunk.index = pd.to_datetime(data_chunk.index)
+                else:
+                    data_chunk.index = pd.to_datetime(data_chunk.index).strftime('%Y-%m-%d')
+
+                return data_chunk
+
+            logger.info("Trying to get a dataframe from cache")
+            df = read_frame(data_dir, fname, extension, separator, index_col=index_column)
+            if df.empty:
+                df = load_data_chunk(from_date, to_date)
+                logger.info("Saving the loaded dataframe into the cache")
+                write_frame(df, data_dir, fname, extension, separator, index=True, index_label=index_column)
+            else:
+                cached_from_date = pd.to_datetime(df.index[0]).strftime('%Y-%m-%d')
+                cached_to_date = pd.to_datetime(df.index[-1]).strftime('%Y-%m-%d')
+
+                logger.info("Loaded cached data from %s to %s", cached_from_date, cached_to_date)
+
+                # Number of business days ahead and behind of cache.
+                # days_ahead_cache should be decremented because today's data might not be available yet.
+                days_ahead_cache = np.busday_count(cached_to_date, to_date) - 1
+                days_behind_cache = np.busday_count(from_date, cached_from_date)
+
+                if days_ahead_cache > 0 or days_behind_cache > 0:
+                    logger.info("Cache outdated, trying to load additional chunks")
+
+                    if days_behind_cache > 0:
+                        logger.info("Getting %s data from %s to %s",
+                                    symbol.upper(), from_date, cached_from_date)
+                        chunk = load_data_chunk(from_date, cached_from_date)
+                        if chunk.empty:
+                            raise ValueError("Could not get market data from source")
+
+                        df = pd.concat([chunk, df])
+
+                    if days_ahead_cache > 0:
+                        logger.info("Getting %s data from %s to %s",
+                                    symbol.upper(), cached_to_date, to_date)
+                        chunk = load_data_chunk(cached_to_date, to_date)
+                        if chunk.empty:
+                            raise ValueError("Could not get market data from source")
+
+                        df = pd.concat([df, chunk])
+
+                    # Drop a possible duplicates
+                    df = df.drop_duplicates()
+
+                    logger.info("Saving the loaded data chunks into the cache")
+                    write_frame(df, data_dir, fname, extension, separator, index=True, index_label=index_column)
+
         else:
             logger.error("Unsupported Data Source: %s", schema)
         # Now that we have content, standardize the data
