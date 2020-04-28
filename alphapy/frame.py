@@ -164,6 +164,8 @@ def read_frame(directory, filename, extension, separator,
     try:
         df = pd.read_csv(file_all, sep=separator, index_col=index_col,
                          squeeze=squeeze, low_memory=False)
+        if index_col:
+            df.index = pd.to_datetime(df.index)
     except:
         df = pd.DataFrame()
         logger.info("Could not find or access %s", file_all)
