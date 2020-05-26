@@ -490,7 +490,7 @@ def main(args=None):
 
     # Create directories if necessary
 
-    output_dirs = ['config', 'data', 'input', 'model', 'output', 'plots']
+    output_dirs = ['config', 'data', 'input', 'markup', 'model', 'output', 'plots']
     for od in output_dirs:
         output_dir = SSEP.join([specs['directory'], od])
         if not os.path.exists(output_dir):

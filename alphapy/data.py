@@ -810,7 +810,7 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
                     symbol.upper(), from_date, to_date)
 
         # local intraday or daily
-        dspace = Space(gspace.subject, gspace.schema, fractal)
+        dspace = Space(gspace.subject, gspace.schema, data_fractal)
         fname = frame_name(symbol.lower(), dspace)
 
         # Locate the data source
@@ -823,7 +823,7 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
                                                          subschema,
                                                          symbol,
                                                          intraday_data,
-                                                         fractal,
+                                                         data_fractal,
                                                          start_date,
                                                          stop_date,
                                                          lookback_period)

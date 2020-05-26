@@ -60,6 +60,7 @@ Q3 = 0.75
 NULLTEXT = 'NULLTEXT'
 TAG_ID = 'tag'
 WILDCARD = '*'
+DATABASE = 'db.sqlite3'
 
 #
 # Dictionaries
