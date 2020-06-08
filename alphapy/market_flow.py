@@ -46,6 +46,7 @@ from alphapy.globals import PSEP, SSEP
 from alphapy.group import Group
 from alphapy.variables import Variable
 from alphapy.variables import vmapply
+from alphapy.markup import MarkupTool
 from alphapy.model import get_model_config
 from alphapy.model import Model
 from alphapy.portfolio import gen_portfolio
@@ -226,7 +227,7 @@ def get_market_config():
 # Function market_pipeline
 #
 
-def market_pipeline(model, market_specs):
+def market_pipeline(model, market_specs, markup_mode=False):
     r"""AlphaPy MarketFlow Pipeline
 
     Parameters
@@ -235,6 +236,9 @@ def market_pipeline(model, market_specs):
         The model object for AlphaPy.
     market_specs : dict
         The specifications for controlling the MarketFlow pipeline.
+    markup_mode : bool
+        Run a markup tool.
+
 
     Returns
     -------
@@ -244,7 +248,7 @@ def market_pipeline(model, market_specs):
     Notes
     -----
     (1) Define a group.
-    (2) Get the market data.
+    (2) Get the market data (and run a markup tool if necessary).
     (3) Apply system features.
     (4) Create an analysis.
     (5) Run the analysis, which calls AlphaPy.
@@ -289,6 +293,15 @@ def market_pipeline(model, market_specs):
         logger.info("Number of Data Points: %d", npoints)
     else:
         raise ValueError("Could not get market data from source")
+
+    # Run a markup tool if markup mode is enabled
+
+    if markup_mode:
+        markup_tool = MarkupTool(model, intraday)
+        logger.info('Starting markup tool')
+        markup_tool.run()
+
+        return None
 
     # Run an analysis to create the model
 
@@ -386,7 +399,8 @@ def main(args=None):
     parser.add_mutually_exclusive_group(required=False)
     parser.add_argument('--predict', dest='predict_mode', action='store_true')
     parser.add_argument('--train', dest='predict_mode', action='store_false')
-    parser.set_defaults(predict_mode=False)
+    parser.add_argument('--markup', dest='markup_mode', action='store_true')
+    parser.set_defaults(predict_mode=False, markup_mode=False)
     args = parser.parse_args()
 
     # Set train and predict dates
@@ -432,7 +446,7 @@ def main(args=None):
     model = Model(model_specs)
 
     # Start the pipeline
-    model = market_pipeline(model, market_specs)
+    model = market_pipeline(model, market_specs, args.markup_mode)
 
     # Complete the pipeline
 
