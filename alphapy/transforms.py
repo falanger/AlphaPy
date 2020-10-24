@@ -445,7 +445,7 @@ def ema(f, c, p = 20):
     .. [IP_EMA] http://www.investopedia.com/terms/e/ema.asp
 
     """
-    new_column = pd.ewma(f[c], span=p)
+    new_column = f[c].ewm(span=p).mean()
     return new_column
 
 
